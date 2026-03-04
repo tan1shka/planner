@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Planner</title>
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+    --bg: #74ED84;
+    --card: #f3ac95;
+    --primary: #e8dff5;
+    --secondary: #fce1e4;
+    --accent: #74ED84;
+    --text: #17030D;
+    --muted: #000000;
+    --radius: 20px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'DM Sans', sans-serif;
+}
+
+body {
+    background: var(--bg);
+    padding: 30px;
+    color: var(--text);
+}
+
+/* HEADER */
+.custom-header {
+    position: relative;
+    height: 220px;
+    border-radius: 25px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #e8dff5, #fce1e4);
+}
+
+.custom-header img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+}
+
+.header-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background: rgba(255,255,255,0.6);
+    padding: 10px 25px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.header-overlay h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px;
+}
+
+.header-overlay p {
+    font-size: 14px;
+    color: #555;
+}
+
+.header-controls {
+    margin-bottom: 25px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* LAYOUT */
+.container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 25px;
+}
+
+.card {
+    background: var(--card);
+    padding: 20px;
+    border-radius: var(--radius);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+}
+
+.section-title {
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+/* INPUT */
+.input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid #eee;
+}
+
+button {
+    padding: 10px 15px;
+    border-radius: 12px;
+    border: none;
+    background: var(--primary);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+button:hover {
+    background: var(--secondary);
+}
+
+/* TASK LIST */
+ul {
+    list-style: none;
+}
+
+li {
+    padding: 8px 0;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+li.completed span {
+    text-decoration: line-through;
+    color: var(--muted);
+}
+
+/* CALENDAR */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.calendar-grid div {
+    padding: 8px;
+    background: var(--accent);
+    border-radius: 10px;
+    font-size: 13px;
+}
+
+.day-name {
+    background: transparent !important;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+@media(max-width: 900px){
+    .container {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<div class="custom-header">
+    <img id="headerImage" />
+    <div class="header-overlay">
+        <h1 contenteditable="true">🌸 My Personal Planner</h1>
+        <p>- Tanishka</p>
+    </div>
+</div>
+
+<div class="header-controls">
+    <input type="file" id="uploadHeader" accept="image/*">
+    <input type="text" id="imageURL" placeholder="Paste image URL">
+    <button onclick="setHeaderFromURL()">Set Header</button>
+</div>
+
+<div class="container">
+
+    <!-- TASKS -->
+    <div class="card">
+        <div class="section-title">✨ Tasks & To-Do</div>
+
+        <div class="input-group">
+            <input type="text" id="taskInput" placeholder="Add a new task...">
+            <button onclick="addTask()">Add</button>
+        </div>
+
+        <ul id="taskList"></ul>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="card">
+        <div class="section-title">📅 Calendar</div>
+        <div class="calendar-header">
+            <button onclick="prevMonth()">←</button>
+            <h3 id="monthYear"></h3>
+            <button onclick="nextMonth()">→</button>
+        </div>
+        <div class="calendar-grid" id="calendar"></div>
+    </div>
+
+</div>
+
+<script>
+/* =======================
+   TASK STORAGE
+======================= */
+function saveTasks() {
+    const tasks = [];
+    document.querySelectorAll("#taskList li").forEach(li => {
+        tasks.push({
+            text: li.querySelector("span").textContent,
+            completed: li.classList.contains("completed")
+        });
+    });
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+}
+
+function addTask(taskTextParam = null, completed = false) {
+    const input = document.getElementById("taskInput");
+    const taskText = taskTextParam || input.value.trim();
+    if (taskText === "") return;
+
+    const li = document.createElement("li");
+    const span = document.createElement("span");
+    span.textContent = taskText;
+
+    if (completed) li.classList.add("completed");
+
+    span.onclick = () => {
+        li.classList.toggle("completed");
+        saveTasks();
+    };
+
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "✕";
+    delBtn.style.background = "#fce1e4";
+    delBtn.onclick = () => {
+        li.remove();
+        saveTasks();
+    };
+
+    li.appendChild(span);
+    li.appendChild(delBtn);
+    document.getElementById("taskList").appendChild(li);
+
+    input.value = "";
+    saveTasks();
+}
+
+function loadTasks() {
+    const saved = JSON.parse(localStorage.getItem("tasks")) || [];
+    saved.forEach(task => addTask(task.text, task.completed));
+}
+
+/* =======================
+   HEADER STORAGE
+======================= */
+document.getElementById("uploadHeader").addEventListener("change", function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const img = document.getElementById("headerImage");
+        img.src = event.target.result;
+        img.style.display = "block";
+        localStorage.setItem("headerImage", event.target.result);
+    };
+    reader.readAsDataURL(file);
+});
+
+function setHeaderFromURL() {
+    const url = document.getElementById("imageURL").value;
+    if (!url) return;
+
+    const img = document.getElementById("headerImage");
+    img.src = url;
+    img.style.display = "block";
+    localStorage.setItem("headerImage", url);
+}
+
+function loadHeader() {
+    const savedImage = localStorage.getItem("headerImage");
+    if (savedImage) {
+        const img = document.getElementById("headerImage");
+        img.src = savedImage;
+        img.style.display = "block";
+    }
+}
+
+/* =======================
+   TITLE STORAGE
+======================= */
+const title = document.querySelector(".header-overlay h1");
+
+title.addEventListener("input", function() {
+    localStorage.setItem("plannerTitle", title.textContent);
+});
+
+function loadTitle() {
+    const savedTitle = localStorage.getItem("plannerTitle");
+    if (savedTitle) title.textContent = savedTitle;
+}
+
+/* =======================
+   CALENDAR
+======================= */
+let currentDate = new Date();
+
+function renderCalendar(date) {
+    const calendar = document.getElementById("calendar");
+    const monthYear = document.getElementById("monthYear");
+    calendar.innerHTML = "";
+
+    const month = date.getMonth();
+    const year = date.getFullYear();
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+
+    const monthNames = [
+        "January","February","March","April","May","June",
+        "July","August","September","October","November","December"
+    ];
+
+    monthYear.textContent = `${monthNames[month]} ${year}`;
+
+    const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    days.forEach(day => {
+        let div = document.createElement("div");
+        div.textContent = day;
+        div.classList.add("day-name");
+        calendar.appendChild(div);
+    });
+
+    for (let i = 0; i < firstDay; i++) {
+        calendar.appendChild(document.createElement("div"));
+    }
+
+    for (let i = 1; i <= lastDate; i++) {
+        let day = document.createElement("div");
+        day.textContent = i;
+        calendar.appendChild(day);
+    }
+}
+
+function prevMonth() {
+    currentDate.setMonth(currentDate.getMonth() - 1);
+    renderCalendar(currentDate);
+}
+
+function nextMonth() {
+    currentDate.setMonth(currentDate.getMonth() + 1);
+    renderCalendar(currentDate);
+}
+
+/* =======================
+   LOAD EVERYTHING
+======================= */
+window.onload = function() {
+    loadTasks();
+    loadHeader();
+    loadTitle();
+    renderCalendar(currentDate);
+};
+</script>
+
+</body>
+</html>
